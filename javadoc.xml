@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="javadoc">
+    <target name="javadoc">
+        <javadoc access="public" author="true" classpath="." destdir="doc" doctitle="Computer Calculation of Fire Danger" nodeprecated="false" nodeprecatedlist="false" noindex="false" nonavbar="false" notree="false" source="1.8" sourcefiles="src/FireDanger.java" sourcepath="src" splitindex="true" use="true" version="true">
+            <link href="file:/C:/Users/Owner/Documents/Programming/COSC%20603/Homework%20and%20Projects/Project%201/FireDanger/doc/"/>
+        </javadoc>
+    </target>
+</project>
