@@ -31,10 +31,10 @@ public class FireDanger {
 	public double timberIndex;
 	public double bui;
 	public double dryingFactor;
+	public double fineFuelMoisture;
+	public double fireLoadIndex;
 	public double adjustedFuelMoisture;
 
-	public double fineFuelMoisture = 99;
-	public double fireLoadIndex = 0;
 
 	double [] arrayA = {-0.185900, -0.85900, -0.59660, -0.077373};
 	double [] arrayB = {30, 19.2, 13.8, 22.5};
@@ -53,8 +53,10 @@ public class FireDanger {
 	 * @param windSpeedMph the current wind speed in miles per hour
 	 * @param lastBui yesterday's build-up index
 	 * @param herbStage the herb stage integer where  1 = Cured, 2 = Transition, and 3 = Green
+	 * @param fineFuelMoisture 
+	 * @param fireLoadIndex 
 	 */
-	public FireDanger(double dryTemp, double wetTemp, boolean snowBool, double snowPrecip, boolean rainBool, double rainPrecip, double windSpeedMph, double lastBui, int herbStage){
+	public FireDanger(double dryTemp, double wetTemp, boolean snowBool, double snowPrecip, boolean rainBool, double rainPrecip, double windSpeedMph, double lastBui, int herbStage, double fineFuelMoisture, double fireLoadIndex, double adjustedFuelMoisture){
 		FireDanger.dryTemp = dryTemp;
 		FireDanger.wetTemp = wetTemp;
 		FireDanger.snowBool = snowBool;
@@ -64,8 +66,10 @@ public class FireDanger {
 		FireDanger.windSpeedMph = windSpeedMph;
 		FireDanger.lastBui = lastBui;		
 		FireDanger.herbStage = herbStage;
+		this.fineFuelMoisture = fineFuelMoisture;
+		this.fireLoadIndex = fireLoadIndex;
 
-		getSnow(snowBool, rainBool, rainPrecip, snowPrecip, lastBui, dryTemp, wetTemp, herbStage, windSpeedMph);
+		getSnow(snowBool, rainBool, rainPrecip, snowPrecip, lastBui, dryTemp, wetTemp, herbStage, windSpeedMph, fineFuelMoisture, fireLoadIndex, adjustedFuelMoisture);
 	}
 
 	/**
@@ -81,18 +85,22 @@ public class FireDanger {
 	 * @param lastBui yesterday's build-up index
 	 * @param herbStage the herb stage integer where  1 = Cured, 2 = Transition, and 3 = Green
 	 */
-	public void getSnow (boolean snowBool, boolean rainBool, double rainPrecip, double snowPrecip, double lastBui, double dryTemp, double wetTemp, int herbStage, double windSpeedMph){
+	public void getSnow (boolean snowBool, boolean rainBool, double rainPrecip, double snowPrecip, double lastBui, double dryTemp, double wetTemp, int herbStage, double windSpeedMph, double fineFuelMoisture, double fireLoadIndex, double adjustedFuelMoisture){
 		if (snowBool = true){
-			timberIndex = 0;
-			grassIndex = 0;
+			double timberIndex = 0;
+			double grassIndex = 0;
 				if (snowPrecip > .1){
-					precipitationTrue(snowPrecip, lastBui);
-			}
+					double bui = calculateBui(snowPrecip, lastBui);
+						if (bui < 0){
+							bui = 0;
+						}
+				printResults(bui, fineFuelMoisture, adjustedFuelMoisture, timberIndex, grassIndex, fireLoadIndex);
+				}
 		} else {
-			getFFM(dryTemp, wetTemp);
-			dryingFactor = calculateDryingFactor();
-			adjustFineFuelForHerbStage(herbStage);
-			getRain(snowBool, rainBool, rainPrecip, snowPrecip, lastBui, dryTemp, wetTemp, herbStage, dryingFactor, windSpeedMph);
+			fineFuelMoisture = calculateFFM(dryTemp, wetTemp);
+			double dryingFactor = calculateDryingFactor();
+			fineFuelMoisture = adjustFineFuelForHerbStage(herbStage, fineFuelMoisture);
+			getRain(snowBool, rainBool, rainPrecip, snowPrecip, lastBui, dryTemp, wetTemp, herbStage, dryingFactor, windSpeedMph, fineFuelMoisture);
 		}
 	}
 	
@@ -109,85 +117,83 @@ public class FireDanger {
 	 * @param lastBui yesterday's build-up index
 	 * @param herbStage the herb stage integer where  1 = Cured, 2 = Transition, and 3 = Green
 	 */
-	public void getRain(boolean snowBool, boolean rainBool, double rainPrecip, double snowPrecip, double lastBui, double dryTemp, double wetTemp, int herbStage, double dryingFactor, double windSpeedMph){
+	public void getRain(boolean snowBool, boolean rainBool, double rainPrecip, double snowPrecip, double lastBui, double dryTemp, double wetTemp, int herbStage, double dryingFactor, double windSpeedMph, double fineFuelMoisture){
 		if (rainBool = true){
 			if (rainPrecip > .1){
-				increaseBuiByDryingFactor(lastBui, dryingFactor);
-				adjustedFuelMoisture = calculateAdjustedFuelMoisture(bui, fineFuelMoisture);
-				setFuelMoistureIndexes(adjustedFuelMoisture, fineFuelMoisture);
-				adjustIndexesForWind(windSpeedMph, adjustedFuelMoisture, fineFuelMoisture);
+				double bui = increaseBuiByDryingFactor(lastBui, dryingFactor);
+				double adjustedFuelMoisture = calculateAdjustedFuelMoisture(bui, fineFuelMoisture);
+				fineFuelMoisture = calculuateNewFFM(fineFuelMoisture);
+				double grassIndex = adjustGrassIndexForWind(windSpeedMph, fineFuelMoisture);
+				double timberIndex = adjustTimberIndexForWind(windSpeedMph, adjustedFuelMoisture);
+
+					if (timberIndex > 0 && bui > 0){
+					double fireLoadIndex = calculateFireLoadIndex(bui, timberIndex);
+					printResults(bui, fineFuelMoisture, adjustedFuelMoisture, timberIndex, grassIndex, fireLoadIndex);
+					}
+				printResults(bui, fineFuelMoisture, adjustedFuelMoisture, timberIndex, grassIndex, fireLoadIndex);
 				
+			} else{
+				double grassIndex = adjustGrassIndexForWind(windSpeedMph, fineFuelMoisture);
+				double timberIndex = adjustTimberIndexForWind(windSpeedMph, adjustedFuelMoisture);
+					if (timberIndex > 0 && bui > 0){
+					calculateFireLoadIndex(bui, timberIndex);
+					printResults(bui, fineFuelMoisture, adjustedFuelMoisture, timberIndex, grassIndex, fireLoadIndex);
+					}
+				printResults(bui, fineFuelMoisture, adjustedFuelMoisture, timberIndex, grassIndex, fireLoadIndex);
+			}
+	} else {
+			increaseBuiByDryingFactor(lastBui, dryingFactor);
+			double adjustedFuelMoisture = calculateAdjustedFuelMoisture(bui, fineFuelMoisture);
+			fineFuelMoisture = calculuateNewFFM(fineFuelMoisture);
+			double grassIndex = adjustGrassIndexForWind(windSpeedMph, fineFuelMoisture);
+			double timberIndex = adjustTimberIndexForWind(windSpeedMph, adjustedFuelMoisture);
+			
 				if (timberIndex > 0 && bui > 0){
 				calculateFireLoadIndex(bui, timberIndex);
+				printResults(bui, fineFuelMoisture, adjustedFuelMoisture, timberIndex, grassIndex, fireLoadIndex);
 				}
-				printResults();
-				}
-		} else {
-			increaseBuiByDryingFactor(lastBui, dryingFactor);
-			adjustedFuelMoisture = calculateAdjustedFuelMoisture(bui, fineFuelMoisture);
-			setFuelMoistureIndexes(adjustedFuelMoisture, fineFuelMoisture);
-			adjustIndexesForWind(windSpeedMph, adjustedFuelMoisture, fineFuelMoisture);
-			
-			if (timberIndex > 0 && bui > 0){
-			calculateFireLoadIndex(bui, timberIndex);
-			}
-			printResults();
+			printResults(bui, fineFuelMoisture, adjustedFuelMoisture, timberIndex, grassIndex, fireLoadIndex);
 			}
 	}
 	
-	/**
-	 * This calculates the build-up index and is executed when there has been precipitation.
-	 * 
-	 * @param rainPrecip the amount, in inches, for amount of rain precipitation in the past 24 hours
-	 * @param lastBui yesterday's build-up index
-	 * @return
-	 */
-	public double precipitationTrue(double rainPrecip, double lastBui){
-		calculateBui(rainPrecip, lastBui);
-		adjustBui(bui);
-		return bui;
-	}
-	
-	/**
-	 * Retrieve the necessary variables to calculate the fine fuel moisture.
-	 * 
-	 * @param dryTemp the dry-bulb reading
-	 * @param wetTemp the wet-bulb reading
-	 */
-	public void getFFM(double dryTemp, double wetTemp){
-		double dif = dryTemp - wetTemp;
-		for(int i = 0; i < 3; i++){
-			if (dif <= arrayC[i]){
-				calculateFFM(dif, i);
-			}
-		}		
-	}
 	
 	/**
 	 * Calculate the fine fuel moisture.
 	 * 
-	 * @param dif the difference between dry temperature bulb reading and the wet temperature bulb reading.
-	 * @param x a counter to iterate through the array.
+	 * @param dryTemp the dry-bulb reading
+	 * @param wetTemp the wet-bulb reading
+	 * @return 
+	 * @return 
 	 */
-	public void calculateFFM(double dif, int x){
-		fineFuelMoisture = (arrayB[x])*Math.E*(arrayA[x]*dif);
+	public double calculateFFM(double dryTemp, double wetTemp){
+		double dif = dryTemp - wetTemp;
+		for(int i = 0; i < 3; i++){
+			if (dif <= arrayC[i]){
+				calculateFFM(dif, i);
+				fineFuelMoisture = (arrayB[i])*Math.E*(arrayA[i]*dif);
+			}
+		}	return fineFuelMoisture;
 	}
+	
+
 
 	/**
 	 * Adjusts the fine fuel moisture based on the herb stage.
 	 * 
 	 * @param herbStage the herb stage integer where  1 = Cured, 2 = Transition, and 3 = Green
+	 * @return 
 	 */
-	public void adjustFineFuelForHerbStage(int herbStage){
+	public double adjustFineFuelForHerbStage(int herbStage, double fineFuelMoisture){
 		if (fineFuelMoisture <= 1){
-			fineFuelMoisture = 1;
+			return fineFuelMoisture = 1;
 		} if (herbStage > 1) {
 			int i = 2;
 			while (i <= herbStage){
 				fineFuelMoisture = fineFuelMoisture + .05;
 				i++;
-			}
+			} return fineFuelMoisture;
 		}
+		return fineFuelMoisture;
 	}
 
 	/**
@@ -198,10 +204,10 @@ public class FireDanger {
 	public double calculateDryingFactor(){
 		int i = 0;
 		while (i < 6){
-			if (fineFuelMoisture >= arrayD[i]){
-				dryingFactor = arrayD[i];
+			if (fineFuelMoisture >= this.arrayD[i]){
+				dryingFactor = this.arrayD[i];
 				return dryingFactor;
-			} else if (fineFuelMoisture <= arrayD[i]){
+			} else if (fineFuelMoisture <= this.arrayD[i]){
 				i++;
 				return dryingFactor;
 			}
@@ -216,42 +222,64 @@ public class FireDanger {
 	 * 
 	 * @param bui the build-up index
 	 * @param timberIndex the timber spread index
+	 * @return 
 	 */
-	public void calculateFireLoadIndex(double bui, double timberIndex){
+	public double calculateFireLoadIndex(double bui, double timberIndex){
 		fireLoadIndex = Math.pow(10, 1.75*Math.log10(timberIndex) + .32*Math.log10(bui)-1.64);
-		if (fireLoadIndex <= 0){
-			fireLoadIndex = 0;
-		} else {
-			fireLoadIndex = Math.pow(10, fireLoadIndex);
-		}
+			if (fireLoadIndex <= 0){
+				return fireLoadIndex = 0;
+			} else {
+				return fireLoadIndex = Math.pow(10, fireLoadIndex);
+			}
 	}
 	
 	/**
-	 * Adjusts the timber spread index and the grass index based on the wind speed.
+	 * The grass index changes based on the wind speed.
 	 * 
-	 * @param windSpeedMph the wind speed on the current day, measured in miles per hour
-	 * @param adjustedFuelMoisture adjusted fuel moisture
-	 * @param fineFuelMoisture fine fuel moisture
+	 * @param windSpeedMph today's wind speed measured in MPH.
+	 * @param fineFuelMoisture calculated FFM.
+	 * @return new grass index calculation based on effecting winds.
 	 */
-	public void adjustIndexesForWind(double windSpeedMph, double adjustedFuelMoisture, double fineFuelMoisture){
+	public double adjustGrassIndexForWind(double windSpeedMph, double fineFuelMoisture){
+		if (windSpeedMph > 14){
+			grassIndex = ((.009184*(windSpeedMph + 6)*Math.pow(33-fineFuelMoisture, 1.65) -3));
+				if (grassIndex >= 99){
+					return grassIndex = 99;
+				} else {
+					return grassIndex;
+				}
+		} else {
+			grassIndex = ((.01312*(windSpeedMph + 6)*Math.pow(33-fineFuelMoisture, 1.65) -3));
+				if (grassIndex <= 1){
+					return grassIndex = 1;
+				}else {
+					return grassIndex;
+				}
+			}
+	}
+	
+	/**
+	 * The timber index changes with based on the wind speed.  
+	 * 
+	 * @param windSpeedMph today's wind speed measured in MPH.
+	 * @param adjustedFuelMoisture calcualted FFM.
+	 * @return new timber index calculation based on effecting winds.
+	 */
+	public double adjustTimberIndexForWind(double windSpeedMph, double adjustedFuelMoisture){
 		if (windSpeedMph > 14){
 			timberIndex = ((.009184*(windSpeedMph + 14.4)*Math.pow(33-adjustedFuelMoisture, 1.65) -3));
-			grassIndex = ((.009184*(windSpeedMph + 6)*Math.pow(33-fineFuelMoisture, 1.65) -3));
-			if (grassIndex >= 99){
-				grassIndex = 99;
-			}
-			if (timberIndex >= 99){
-				timberIndex = 99;
-			}
+				if (timberIndex >= 99){
+					return timberIndex = 99;
+				} else {
+					return timberIndex;
+				}
 		} else {
 			timberIndex = ((.01312*(windSpeedMph + 6)*Math.pow(33-adjustedFuelMoisture, 1.65) -3));
-			grassIndex = ((.01312*(windSpeedMph + 6)*Math.pow(33-fineFuelMoisture, 1.65) -3));
-			if (timberIndex <= 1){
-				timberIndex =1;
-			}
-			if (grassIndex <= 1){
-				grassIndex = 1;
-			}
+				if (timberIndex <= 1){
+					return timberIndex = 1;
+				} else {
+					return timberIndex;
+				}
 		}
 	}
 	
@@ -276,16 +304,33 @@ public class FireDanger {
 	}
 	
 	/**
-	 * Calculates the adjusted fuel moisture based on the build up index and fine fuel moisture. 
+	 * Moisture effects the fuel moisture which is taken into consideration and calculated.
 	 * 
-	 * @param bui
-	 * @param fineFuelMoisture
-	 * @return
+	 * @param bui yesterday's or today's bui depending on precipitation.
+	 * @param fineFuelMoisture calculated FFM.
+	 * @return adjusted fuel moisture is returned.
 	 */
 	public double calculateAdjustedFuelMoisture(double bui, double fineFuelMoisture){
-		return adjustedFuelMoisture = (.9*fineFuelMoisture + .5 + 9.5 *Math.E* (-bui/50));
+		adjustedFuelMoisture = (.9*fineFuelMoisture + .5 + 9.5 *Math.E* (-bui/50));
+			if (adjustedFuelMoisture > 30){
+			return adjustedFuelMoisture = 1;
+			} else {
+			return adjustedFuelMoisture;
+			}
 	}
 	
+	public double calculuateNewFFM(double fineFuelMoisture){ 
+		if (fineFuelMoisture > 30){
+			fineFuelMoisture = 1;
+			double timberIndex = 1;
+			double grassIndex = 1;
+			return fineFuelMoisture;
+		} else {
+			return fineFuelMoisture;
+		}
+
+	}
+			
 	/**
 	 * Increases the build up index by the drying factor.
 	 * 
@@ -305,22 +350,11 @@ public class FireDanger {
 	 * @return
 	 */
 	public double calculateBui (double precipitation, double lastBui) {
-		bui = -50*(Math.log(1-(-Math.E*(-lastBui/50))*Math.E*(-1.175*(precipitation - .1))));
-		return bui;
+		return bui = -50*(Math.log(1-(-Math.E*(-lastBui/50))*Math.E*(-1.175*(precipitation - .1))));
 	}
 	
-	/**
-	 * Sets the build up index to 0 if it is less than 0.
-	 * 
-	 * @param bui
-	 */
-	public void adjustBui(double bui){
-		if (bui < 0){
-			bui = 0;
-		}
-	}
 
-	public void printResults(){
+	public void printResults(double bui, double fineFuelMoisture, double adjustedFuelMoisture, double timberIndex, double grassIndex, double fireLoadIndex){
 		System.out.println("BUI: "+ bui);
 		System.out.println("Fine Fuel Moisture: "+ fineFuelMoisture);
 		System.out.println("Adjusted Fuel Moisture: "+ adjustedFuelMoisture);
@@ -333,6 +367,10 @@ public class FireDanger {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 				
+		double fineFuelMoisture = 99;
+		double fireLoadIndex = 0;
+		double adjustedFuelMoisture = 99;
+
 		Scanner input = new Scanner(System.in);
 		
 		System.out.println("Enter the dry-bulb temperature reading: ");
@@ -372,7 +410,7 @@ public class FireDanger {
 		
 		input.close();
 		
-		FireDanger calc = new FireDanger(dryTemp, wetTemp, snowBool, snowPrecip, rainBool, rainPrecip, windSpeedMph, lastBui, herbStage);
+		FireDanger calc = new FireDanger(dryTemp, wetTemp, snowBool, snowPrecip, rainBool, rainPrecip, windSpeedMph, lastBui, herbStage, fineFuelMoisture, fireLoadIndex, adjustedFuelMoisture);
 	}
 }
 
